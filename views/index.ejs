@@ -60,23 +60,55 @@
 
 <body>
     <div class="container">
-        <h1 class="mt-5">Posts</h1>
+        <h1 class="mt-5">For you</h1>
+        <form id="postForm" enctype="multipart/form-data">
+            <label for="caption">Caption:</label>
+            <input type="text" id="caption" name="caption" required>
+
+            <label for="image">Image:</label>
+            <input type="file" id="image" name="image" accept="image/*" required>
+
+            <button type="submit">Post</button>
+        </form>
         <div class="row">
             <% posts.forEach(post=> { %>
                 <div class="card">
-                    <p>Posted by: <a href="/profile/<%= post.user._id %>"><%= post.user %></a></p>
-                    <p>User ID: <%= userId %></p>
+                    <p>Posted by: <a href="/<%= post.user.username %>/">@<%= post.user.username %></a></p>
+                  
+
+                    <!-- Follow/Unfollow Logic -->
+                    <% const isFollowing = (post.user.followers && post.user.followers.map(f => f.toString()).includes(userId)); %>
+                    <form id="follow-unfollow-form-<%= post.user._id %>" action="/follow/<%= post.user._id %>" method="PUT">
+                        <% if (post.user._id.toString() !== userId) { %>
+                            <button type="button" id="<%= isFollowing ? 'unfollow-button-' : 'follow-button-' %><%= post.user._id %>">
+                                <%= isFollowing ? 'Unfollow' : 'Follow' %>
+                            </button>
+                        <% } %>
+                    </form>
+                    
+
+
+
                     <img src="<%= post.imageUrl %>" alt="<%= post.caption %>">
+                    
                     <div class="card-body">
-                        <h5 class="card-title">
-                            <%= post.caption %>
-                        </h5>
-                        <p class="card-text">Posted by: <%= post.user.name %>
-                        </p>
-                        <p class="card-text"><strong>
+                        <form id="like-form-<%= post._id %>" action="/api/posts/<%= post._id %>/like" method="POST">
+                            <% const likedByCurrentUser = post.likes.map(like => like._id.toString()).includes(userId); %>
+                            <button type="button" id="like-button-<%= post._id %>">
+                                <%= likedByCurrentUser ? 'Unlike' : 'Like' %>
+                            </button>
+                            (<span id="like-count-<%= post._id %>">
                                 <%= post.likes.length %>
-                            </strong> Likes</p>
-                        <h6>Comments</h6>
+                            </span>)
+                        </form>
+
+                        <p class="card-title">
+                            <strong><%= post.user.username %></strong>
+                            <%= post.caption %>
+                        </p>
+                        
+                        
+                            <h6>Comments</h6>
                         <ul class="list-group">
                             <% post.comments.forEach(comment=> { %>
                                 <li class="list-group-item">
@@ -87,16 +119,6 @@
                                 </li>
                                 <% }) %>
                         </ul>
-                        <form id="like-form-<%= post._id %>" action="/api/posts/<%= post._id %>/like" method="POST">
-                            <% const likedByCurrentUser = post.likes.map(like => like._id.toString()).includes(userId); %>
-                            <button type="button" id="like-button-<%= post._id %>">
-                                <%= likedByCurrentUser ? 'Unlike' : 'Like' %>
-                            </button>
-                            <span><%= post.imageUrl %></span>
-                            (<span id="like-count-<%= post._id %>">
-                                <%= post.likes.length %>
-                            </span>)
-                        </form>
                         <form action="/api/posts/<%= post._id %>/comment" method="POST">
                             <input type="text" name="comment" placeholder="Add a comment" required>
                             <button type="submit">Comment</button>
@@ -121,6 +143,64 @@
 
         // Example: Get the token from a cookie named 'token'
         const token = getCookie('token')        
+
+        document.getElementById('postForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            formData.append('caption', document.getElementById('caption').value);
+            formData.append('image', document.getElementById('image').files[0]);
+
+            try {
+                const response = await fetch('api/posts/create', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    }
+                });
+
+                if (response.ok) {
+                    window.location.reload(); // Reload the page to see the new post
+                } else {
+                    const data = await response.json();
+                    alert('Failed to create post: ' + data.message);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        });
+
+        document.querySelectorAll('[id^="follow-button-"], [id^="unfollow-button-"]').forEach(button => {
+    button.addEventListener('click', async function () {
+        const userIdToFollowOrUnfollow = this.id.split('-')[2];
+        const isUnfollow = this.id.startsWith('unfollow');
+        const form = document.getElementById(`follow-unfollow-form-${userIdToFollowOrUnfollow}`);
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`You have ${isUnfollow ? 'unfollowed' : 'followed'} ${data.user.firstname}`);
+                this.textContent = isUnfollow ? 'Follow' : 'Unfollow';
+                this.id = isUnfollow ? `follow-button-${userIdToFollowOrUnfollow}` : `unfollow-button-${userIdToFollowOrUnfollow}`;
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    });
+});
+
 
         document.querySelectorAll('[id^="like-button-"]').forEach(button => {
             button.addEventListener('click', async function (e) {

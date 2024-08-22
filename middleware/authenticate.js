@@ -5,20 +5,20 @@ const JWT_SECRET =
 const authenticate = (req, res, next) => {
   const token = req.cookies.token
 
-  // console.log('Token from cookie:', token)
+   console.log('Token from cookie:', token)
 
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET)
-      // console.log('Decoded JWT', decoded)
+       console.log('Decoded JWT', decoded)
       req.userId = decoded.id
       next()
     } catch (err) {
       res.clearCookie("token")
-      res.redirect("login")
+      res.redirect("/accounts/login")
     }
   } else {
-    res.redirect("/login")
+    res.redirect("/accounts/login")
   }
 }
 

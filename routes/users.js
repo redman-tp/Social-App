@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose')
 const User = require('../models/User');
 const Post = require('../models/Post')
 const router = express.Router();
@@ -13,7 +14,7 @@ const JWT_SECRET = '9878924f604a926a44cacd21fd5e9b8061c2beae286f570902d16b0229f2
 // Register a new user
 router.post('/signup', async (req, res) => {
     console.log(req.body);
-    const { firstName, lastName, otherName, displayName, email, password, age } = req.body;
+    const { firstname, lastname, othername, username, email, password, age } = req.body;
 
     try {
         const existingUser = await User.findOne({ email });
@@ -24,7 +25,7 @@ router.post('/signup', async (req, res) => {
             });
         }
 
-        const user = new User({ firstName, lastName, otherName, displayName, email, password, age });
+        const user = new User({ firstname, lastname, othername, username, email, password, age });
         await user.save();
 
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
@@ -74,17 +75,17 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Get user profile
-router.get('/profile/:id', async (req, res) => {
+//Get user profile
+router.get('/:username', async (req, res) => {
     try {
-        const user = await User.findById(req.params.id)
-            .populate('followers', 'firstName lastName displayName') // Populating followers with specific fields
-            .populate('following', 'firstName lastName displayName') // Populating following with specific fields
+        const user = await User.findOne({ username: req.params.username })
+            .populate('followers', 'firstname lastname othernames username') // Populating followers with specific fields
+            .populate('following', 'firstname lastname othernames username') // Populating following with specific fields
             .populate({
                 path: 'posts',
                 populate: {
                     path: 'user', // Populate the user field in posts if needed
-                    select: 'firstName lastName displayName' // Adjust fields as needed
+                    select: 'firstname lastname othernames username' // Adjust fields as needed
                 }
             });
 
@@ -187,39 +188,54 @@ router.put('/users/:id', authenticate, async (req, res) => {
 // Follow a User
 router.put('/follow/:id', authenticate, async (req, res) => {
     try {
-        const userToFollow = await User.findById(req.params.id)
+        const userToFollow = await User.findById(req.params.id);
 
         if (!userToFollow) {
-            return res.status(404).send({ success: false, message: 'User not found' })
+            return res.status(404).send({ success: false, message: 'User not found' });
         }
 
-        const currentUser = await User.findById(req.user.id)
+        const currentUser = await User.findById(req.userId);
 
-        if (currentUser.id == req.params.id) {
-            return res.status(400).send({ success: false, message: "You can't follow yourself" })
+        if (currentUser.id === req.params.id) {
+            return res.status(400).send({ success: false, message: "You can't follow yourself" });
         }
 
         if (currentUser.following.includes(req.params.id)) {
-            return res.status(400).send({ success: false, message: 'Already following this user'})
+            // Unfollow logic
+            currentUser.following = currentUser.following.filter(id => id.toString() !== req.params.id);
+            userToFollow.followers = userToFollow.followers.filter(id => id.toString() !== req.userId);
+
+            await currentUser.save();
+            await userToFollow.save();
+
+            return res.status(200).send({
+                success: true,
+                message: 'User unfollowed successfully',
+                user: userToFollow
+            });
+        } else {
+            // Follow logic
+            currentUser.following.push(req.params.id);
+            userToFollow.followers.push(req.userId);
+
+            await currentUser.save();
+            await userToFollow.save();
+
+            return res.status(200).send({
+                success: true,
+                message: 'User followed successfully',
+                user: userToFollow
+            });
         }
-
-        currentUser.following.push(req.params.id)
-        userToFollow.followers.push(req.user.id)
-
-        await currentUser.save()
-        await userToFollow.save()
-
-        res.status(200).send({
-            success: true,
-            message: 'User followed successfully'
-        })
     } catch (err) {
         res.status(500).send({
             success: false,
             message: err.message
-        })
+        });
     }
-})
+});
+
+
 
 // Unfollow a user
 router.put('/unfollow/:id', authenticate, async (req, res) => {

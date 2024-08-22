@@ -30,20 +30,20 @@ mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .catch(err => console.log(err));
 
 // Routes
-app.use('/api/users', userRoutes);
+app.use('/', userRoutes);
 app.use('/api/posts', postRoutes);
 
 // Render signup page
-app.get('/signup', (req, res) => {
+app.get('/accounts/signup', (req, res) => {
     res.render('signup')
 })
 
 // Render login page
-app.get('/login', (req, res) => {
+app.get('/accounts/login', (req, res) => {
     res.render('login')
 })
 
-app.get('/logout', (req, res) => {
+app.get('/accounts/logout', (req, res) => {
     res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'strict' });
     res.status(200)
     res.redirect('/login') 
@@ -57,9 +57,9 @@ app.get('/', authenticate, async (req, res) => {
 
     try {
         const posts = await Post.find()
-            .populate('user', 'firstName lastName displayName') // Populating the user field in posts
-            .populate('comments.user', 'firstName lastName displayName') // Populating the user field in comments
-            .populate('likes', 'firstName lastName displayName') // Populating the user field in likes
+            .populate('user', 'firstname lastname othernames username followers') // Populating the user field in posts
+            .populate('comments.user', 'firstname lastname othernames username') // Populating the user field in comments
+            .populate('likes', 'firstname lastname othernames username') // Populating the user field in likes
   
         res.render('index', { posts, userId: req.userId });
         

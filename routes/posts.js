@@ -82,33 +82,32 @@ router.post("/create", authenticate, (req, res) => {
   })
 })
 
-// Get all posts
-// router.get('/posts', authenticate, async (req, res) => {
-//   try {
-//       const posts = await Post.find();
-//       res.status(200).send({
-//           success: true,
-//           posts: posts,
-//           request: {
-//               query: req.query,
-//               params: req.params,
-//               headers: req.headers,
-//               body: req.body
-//           }
-//       });
-//   } catch (err) {
-//       res.status(500).send({
-//           success: false,
-//           error: err.message,
-//           request: {
-//               query: req.query,
-//               params: req.params,
-//               headers: req.headers,
-//               body: req.body
-//           }
-//       });
-//   }
-// });
+router.get('/posts', authenticate, async (req, res) => {
+  try {
+      const posts = await Post.find();
+      res.status(200).send({
+          success: true,
+          posts: posts,
+          request: {
+              query: req.query,
+              params: req.params,
+              headers: req.headers,
+              body: req.body
+          }
+      });
+  } catch (err) {
+      res.status(500).send({
+          success: false,
+          error: err.message,
+          request: {
+              query: req.query,
+              params: req.params,
+              headers: req.headers,
+              body: req.body
+          }
+      });
+  }
+});
 
 // Like a post
 router.post("/:id/like", authenticate, async (req, res) => {
